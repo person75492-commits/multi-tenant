@@ -98,3 +98,23 @@ router.get('/google/failure', (req, res) => {
 });
 
 module.exports = router;
+
+// PATCH /api/v1/auth/change-password — authenticated users only
+const { protect } = require('../middleware/auth');
+const catchAsync  = require('../utils/catchAsync');
+const AppError    = require('../utils/AppError');
+const User        = require('../models/User');
+
+router.patch('/change-password', protect, catchAsync(async (req, res, next) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword)
+    return next(new AppError('Current and new password are required.', 400));
+
+  const user = await User.findById(req.user_id).select('+password');
+  if (!user.password || !(await user.comparePassword(currentPassword)))
+    return next(new AppError('Current password is incorrect.', 401));
+
+  user.password = newPassword;
+  await user.save(); // pre-save hook hashes it
+  res.json({ status: 'success', message: 'Password updated successfully.' });
+}));

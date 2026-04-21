@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { useAuth } from '../context/AuthContext';
 import { sounds } from '../utils/sound';
 import { Link } from 'react-router-dom';
+import api from '../services/api';
+import { toast } from '../components/Toast';
 
 function Toggle({ checked, onChange }) {
   return (
@@ -12,14 +15,26 @@ function Toggle({ checked, onChange }) {
   );
 }
 
-function Row({ label, desc, children }) {
+function Section({ icon, title, children }) {
   return (
-    <div className="settings-row">
-      <div>
-        <p className="settings-label">{label}</p>
-        {desc && <p className="settings-desc">{desc}</p>}
+    <div className="s-section">
+      <div className="s-section-header">
+        <span className="s-section-icon">{icon}</span>
+        <h2 className="s-section-title">{title}</h2>
       </div>
-      {children}
+      <div className="s-section-body">{children}</div>
+    </div>
+  );
+}
+
+function Row({ label, desc, children, danger }) {
+  return (
+    <div className={`s-row${danger ? ' s-row-danger' : ''}`}>
+      <div className="s-row-info">
+        <p className="s-row-label">{label}</p>
+        {desc && <p className="s-row-desc">{desc}</p>}
+      </div>
+      <div className="s-row-action">{children}</div>
     </div>
   );
 }
@@ -28,111 +43,147 @@ export default function Settings() {
   const { settings, update } = useSettings();
   const { user } = useAuth();
 
-  const testSound = (type) => {
-    if (!settings.soundEnabled) return;
-    sounds[type]?.();
+  const [pwForm, setPwForm]   = useState({ current: '', next: '', confirm: '' });
+  const [pwError, setPwError] = useState('');
+  const [pwLoading, setPwLoading] = useState(false);
+  const [showPw, setShowPw]   = useState(false);
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPwError('');
+    if (pwForm.next !== pwForm.confirm) return setPwError('Passwords do not match.');
+    if (pwForm.next.length < 8)         return setPwError('Password must be at least 8 characters.');
+    if (!/[A-Z]/.test(pwForm.next))     return setPwError('Must contain an uppercase letter.');
+    if (!/[0-9]/.test(pwForm.next))     return setPwError('Must contain a number.');
+    if (!/[!@#$%^&*]/.test(pwForm.next)) return setPwError('Must contain a special character.');
+    setPwLoading(true);
+    try {
+      await api.patch('/auth/change-password', {
+        currentPassword: pwForm.current,
+        newPassword:     pwForm.next,
+      });
+      toast.success('Password changed successfully.');
+      setPwForm({ current: '', next: '', confirm: '' });
+    } catch (err) {
+      setPwError(err.response?.data?.message || 'Failed to change password.');
+    } finally {
+      setPwLoading(false);
+    }
   };
 
   return (
-    <div className="settings-page">
-      <div className="settings-container">
+    <div className="s-page">
+      <div className="s-container">
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
-          <Link to="/" className="btn btn-ghost btn-sm">← Back</Link>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text)' }}>Settings</h1>
+        {/* Header */}
+        <div className="s-header">
+          <Link to="/" className="s-back">← Back</Link>
+          <div>
+            <h1 className="s-title">Settings</h1>
+            <p className="s-subtitle">Manage your account and preferences</p>
+          </div>
         </div>
 
-        {/* Profile info */}
-        <div className="settings-section">
-          <p className="settings-section-title">Account</p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', padding: '8px 0' }}>
-            <div style={{
-              width: '48px', height: '48px', borderRadius: '50%',
-              background: 'var(--primary-light)', display: 'flex',
-              alignItems: 'center', justifyContent: 'center',
-              fontSize: '1.4rem', flexShrink: 0,
-            }}>
-              {user?.role === 'admin' ? '👑' : '👤'}
-            </div>
-            <div>
-              <p style={{ fontWeight: 600, color: 'var(--text)' }}>{user?.name}</p>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{user?.email}</p>
-              <span className={`role-badge ${user?.role}`} style={{ marginTop: '4px', display: 'inline-block' }}>
-                {user?.role}
-              </span>
-            </div>
+        {/* Profile card */}
+        <div className="s-profile-card">
+          <div className="s-avatar">
+            {user?.role === 'admin' ? '👑' : '👤'}
+          </div>
+          <div className="s-profile-info">
+            <p className="s-profile-name">{user?.name}</p>
+            <p className="s-profile-email">{user?.email}</p>
+            <span className={`role-badge ${user?.role}`}>{user?.role}</span>
           </div>
         </div>
 
         {/* Appearance */}
-        <div className="settings-section">
-          <p className="settings-section-title">Appearance</p>
-          <Row label="Theme" desc="Choose your preferred color scheme">
-            <div className="theme-options">
-              {[
-                { key: 'light', icon: '☀️', label: 'Light' },
-                { key: 'dark',  icon: '🌙', label: 'Dark'  },
-              ].map(({ key, icon, label }) => (
-                <button
-                  key={key}
+        <Section icon="🎨" title="Appearance">
+          <Row label="Theme" desc="Switch between light and dark mode">
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {[{ key: 'light', icon: '☀️', label: 'Light' }, { key: 'dark', icon: '🌙', label: 'Dark' }].map(({ key, icon, label }) => (
+                <button key={key}
                   className={`theme-btn${settings.theme === key ? ' active' : ''}`}
                   onClick={() => update('theme', key)}
+                  style={{ minWidth: '90px' }}
                 >
                   {icon} {label}
                 </button>
               ))}
             </div>
           </Row>
-          <Row label="Compact view" desc="Show more tasks with less spacing">
-            <Toggle
-              checked={settings.compactView}
-              onChange={(v) => update('compactView', v)}
-            />
+          <Row label="Compact view" desc="Denser task list with less spacing">
+            <Toggle checked={settings.compactView} onChange={(v) => update('compactView', v)} />
           </Row>
-        </div>
+        </Section>
 
         {/* Notifications */}
-        <div className="settings-section">
-          <p className="settings-section-title">Notifications</p>
-          <Row label="Sound effects" desc="Play sounds on task actions">
-            <Toggle
-              checked={settings.soundEnabled}
-              onChange={(v) => update('soundEnabled', v)}
-            />
+        <Section icon="🔔" title="Notifications">
+          <Row label="Sound effects" desc="Play audio feedback on task actions">
+            <Toggle checked={settings.soundEnabled} onChange={(v) => update('soundEnabled', v)} />
           </Row>
           <Row label="Toast notifications" desc="Show pop-up messages for actions">
-            <Toggle
-              checked={settings.notificationsEnabled}
-              onChange={(v) => update('notificationsEnabled', v)}
-            />
+            <Toggle checked={settings.notificationsEnabled} onChange={(v) => update('notificationsEnabled', v)} />
           </Row>
           {settings.soundEnabled && (
-            <Row label="Test sounds" desc="Preview notification sounds">
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button className="btn btn-sm btn-ghost" onClick={() => testSound('success')}>✅ Success</button>
-                <button className="btn btn-sm btn-ghost" onClick={() => testSound('error')}>❌ Error</button>
-                <button className="btn btn-sm btn-ghost" onClick={() => testSound('delete')}>🗑️ Delete</button>
+            <Row label="Test sounds" desc="Preview each notification sound">
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {[
+                  { type: 'success', label: '✅ Success' },
+                  { type: 'error',   label: '❌ Error' },
+                  { type: 'delete',  label: '🗑️ Delete' },
+                  { type: 'notify',  label: '🔔 Notify' },
+                ].map(({ type, label }) => (
+                  <button key={type} className="btn btn-sm btn-ghost"
+                    onClick={() => sounds[type]?.()}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
             </Row>
           )}
-        </div>
+        </Section>
 
-        {/* Reset */}
-        <div className="settings-section">
-          <p className="settings-section-title">Reset</p>
-          <Row label="Restore defaults" desc="Reset all settings to their default values">
-            <button
-              className="btn btn-sm"
+        {/* Security — change password */}
+        <Section icon="🔐" title="Security">
+          <Row label="Change password" desc="Update your account password">
+            <button className="btn btn-sm btn-ghost" onClick={() => setShowPw(!showPw)}>
+              {showPw ? 'Cancel' : 'Change'}
+            </button>
+          </Row>
+          {showPw && (
+            <form onSubmit={handleChangePassword} style={{ padding: '16px 0 4px' }}>
+              {pwError && <div className="alert alert-error" style={{ marginBottom: '12px' }}>⚠️ {pwError}</div>}
+              {[
+                { key: 'current', placeholder: 'Current password' },
+                { key: 'next',    placeholder: 'New password (min 8 chars, A-Z, 0-9, !@#$)' },
+                { key: 'confirm', placeholder: 'Confirm new password' },
+              ].map(({ key, placeholder }) => (
+                <input key={key} type="password" className="form-input"
+                  placeholder={placeholder}
+                  value={pwForm[key]}
+                  onChange={(e) => setPwForm({ ...pwForm, [key]: e.target.value })}
+                  style={{ marginBottom: '10px' }}
+                />
+              ))}
+              <button type="submit" className="btn btn-primary btn-sm" disabled={pwLoading}>
+                {pwLoading ? 'Saving…' : 'Update Password'}
+              </button>
+            </form>
+          )}
+        </Section>
+
+        {/* Danger zone */}
+        <Section icon="⚠️" title="Danger Zone">
+          <Row label="Reset settings" desc="Restore all preferences to defaults" danger>
+            <button className="btn btn-sm"
               style={{ background: 'var(--danger-light)', color: 'var(--danger)' }}
-              onClick={() => {
-                localStorage.removeItem('settings');
-                window.location.reload();
-              }}
+              onClick={() => { localStorage.removeItem('settings'); window.location.reload(); }}
             >
               Reset
             </button>
           </Row>
-        </div>
+        </Section>
 
       </div>
     </div>
