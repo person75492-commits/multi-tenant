@@ -3,11 +3,13 @@ import { createContext, useContext, useState, useEffect } from 'react';
 const SettingsContext = createContext(null);
 
 const DEFAULTS = {
-  theme:             'light',   // 'light' | 'dark'
-  soundEnabled:      true,
+  theme:                'light',
+  soundEnabled:         true,
   notificationsEnabled: true,
-  compactView:       false,
-  language:          'en',
+  compactView:          false,
+  showTaskMeta:         true,   // show creator + date on task cards
+  confirmDelete:        true,   // show confirm dialog before delete
+  autoRefresh:          false,  // auto-refresh task list every 30s
 };
 
 export const SettingsProvider = ({ children }) => {

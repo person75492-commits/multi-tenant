@@ -63,7 +63,12 @@ export default function Dashboard() {
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
-  // Show a warning toast 60s before session expires
+  // Auto-refresh every 30s if enabled
+  useEffect(() => {
+    if (!settings.autoRefresh) return;
+    const interval = setInterval(fetchTasks, 30_000);
+    return () => clearInterval(interval);
+  }, [settings.autoRefresh, fetchTasks]);
   useEffect(() => {
     const handle = () => {
       if (settings.notificationsEnabled)
@@ -73,6 +78,13 @@ export default function Dashboard() {
     window.addEventListener('auth:expiring', handle);
     return () => window.removeEventListener('auth:expiring', handle);
   }, [settings]);
+
+  // Auto-refresh every 30s if enabled in settings
+  useEffect(() => {
+    if (!settings.autoRefresh) return;
+    const interval = setInterval(fetchTasks, 30_000);
+    return () => clearInterval(interval);
+  }, [settings.autoRefresh, fetchTasks]);
 
   const handleSave = async (form) => {
     setSaveError('');
@@ -97,7 +109,18 @@ export default function Dashboard() {
     }
   };
 
-  const handleDelete = (id, title) => { setConfirmId(id); setConfirmTitle(title); };
+  const handleDelete = (id, title) => {
+    if (!settings.confirmDelete) {
+      // Skip confirm dialog — delete directly
+      setConfirmId(id);
+      setConfirmTitle(title);
+      // auto-trigger
+      setTimeout(() => handleConfirmDelete(), 0);
+      return;
+    }
+    setConfirmId(id);
+    setConfirmTitle(title);
+  };
 
   const handleConfirmDelete = async () => {
     setDeleting(true);

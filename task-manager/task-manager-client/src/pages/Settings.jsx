@@ -113,15 +113,28 @@ export default function Settings() {
           <Row label="Compact view" desc="Denser task list with less spacing">
             <Toggle checked={settings.compactView} onChange={(v) => update('compactView', v)} />
           </Row>
+          <Row label="Show task details" desc="Display creator name and date on task cards">
+            <Toggle checked={settings.showTaskMeta} onChange={(v) => update('showTaskMeta', v)} />
+          </Row>
         </Section>
 
         {/* Notifications */}
-        <Section icon="🔔" title="Notifications">
+        <Section icon="🔔" title="Notifications & Sound">
           <Row label="Sound effects" desc="Play audio feedback on task actions">
             <Toggle checked={settings.soundEnabled} onChange={(v) => update('soundEnabled', v)} />
           </Row>
           <Row label="Toast notifications" desc="Show pop-up messages for actions">
             <Toggle checked={settings.notificationsEnabled} onChange={(v) => update('notificationsEnabled', v)} />
+          </Row>
+        </Section>
+
+        {/* Tasks behaviour */}
+        <Section icon="✅" title="Task Behaviour">
+          <Row label="Confirm before delete" desc="Show a confirmation dialog before deleting a task">
+            <Toggle checked={settings.confirmDelete} onChange={(v) => update('confirmDelete', v)} />
+          </Row>
+          <Row label="Auto-refresh tasks" desc="Automatically reload task list every 30 seconds">
+            <Toggle checked={settings.autoRefresh} onChange={(v) => update('autoRefresh', v)} />
           </Row>
         </Section>
 
