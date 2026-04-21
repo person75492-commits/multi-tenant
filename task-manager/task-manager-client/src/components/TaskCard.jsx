@@ -13,9 +13,10 @@ const STATUS_CONFIG = {
 export default function TaskCard({ task, onDelete, onEdit, onStatusChange, isEditing = false, isDeleting = false, compact = false }) {
   const { isAdmin, userId } = useAuth();
 
-  const creatorId = task.created_by?._id ?? task.created_by;
-  const canMutate    = isAdmin || String(creatorId) === String(userId);
-  const canChangeStatus = isAdmin || true; // any org member can update status
+  const creatorId   = task.created_by?._id ?? task.created_by;
+  const isOwnTask   = String(creatorId) === String(userId);
+  const canMutate   = isAdmin || isOwnTask;
+  const canChangeStatus = true; // everyone can change status on visible tasks
 
   const guardedEdit = () => {
     if (!canMutate) { toast.error(AUTH_ERROR); return; }
@@ -49,7 +50,6 @@ export default function TaskCard({ task, onDelete, onEdit, onStatusChange, isEdi
     'task-card',
     isEditing  ? 'editing'  : '',
     isDeleting ? 'deleting' : '',
-    !canMutate ? 'readonly' : '',
     compact    ? 'compact'  : '',
     task.status === 'completed' ? 'task-completed' : '',
   ].filter(Boolean).join(' ');
@@ -60,7 +60,7 @@ export default function TaskCard({ task, onDelete, onEdit, onStatusChange, isEdi
         <div className="task-title-row">
           {isEditing  && <span className="tag tag-editing">Editing</span>}
           {isDeleting && <span className="tag tag-deleting">Deleting…</span>}
-          {!canMutate && <span className="tag tag-readonly">View only</span>}
+          {!isAdmin && !isOwnTask && <span className="tag tag-readonly">👁️ View only</span>}
           {task.visibility === 'public' && <span className="tag" style={{ background: '#dbeafe', color: '#1d4ed8' }}>📢 Broadcast</span>}
           <h3 className="task-title" style={{ textDecoration: task.status === 'completed' ? 'line-through' : 'none', opacity: task.status === 'completed' ? 0.6 : 1 }}>
             {task.title}

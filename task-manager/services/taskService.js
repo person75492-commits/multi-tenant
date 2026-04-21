@@ -22,17 +22,17 @@ exports.getAllTasks = async (req) => {
   const skip   = (page - 1) * limit;
   const search = req.query.search;
 
-  // Admin → sees all org tasks
-  // Member → sees: public tasks + own tasks + tasks assigned to them
+  // Admin → sees ALL org tasks
+  // Member → sees own tasks + tasks assigned to them + public/broadcast tasks
   const filter =
     req.role === 'admin'
       ? { organization_id: req.organization_id }
       : {
           organization_id: req.organization_id,
           $or: [
-            { visibility: 'public' },          // admin broadcast tasks
-            { created_by: req.user_id },        // own tasks
-            { assignee: req.user_id },          // assigned tasks
+            { created_by: req.user_id },
+            { assignee: req.user_id },
+            { visibility: 'public' },
           ],
         };
 
