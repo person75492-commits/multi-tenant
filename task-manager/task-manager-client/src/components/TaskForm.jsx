@@ -46,7 +46,7 @@ export default function TaskForm({ initial = null, onSubmit, onCancel, loading, 
     onSubmit({
       title:       form.title.trim(),
       description: form.description.trim(),
-      assignee:    form.assignee || null,
+      assignee:    form.visibility === 'private' ? (form.assignee || null) : null,
       visibility:  form.visibility,
     });
   };
@@ -84,12 +84,12 @@ export default function TaskForm({ initial = null, onSubmit, onCancel, loading, 
         />
       </div>
 
-      {/* Assignee — admin only */}
-      {isAdmin && members.length > 0 && (
+      {/* Assignee — admin only, only for private tasks */}
+      {isAdmin && form.visibility === 'private' && members.length > 0 && (
         <div className="form-group">
           <label className="form-label">Assign to <span className="optional">(optional)</span></label>
           <select className="form-input" value={form.assignee} onChange={set('assignee')}>
-            <option value="">— Unassigned —</option>
+            <option value="">— Unassigned (only admin sees) —</option>
             {members.map((m) => (
               <option key={m._id} value={m._id}>{m.name} ({m.email})</option>
             ))}

@@ -13,10 +13,11 @@ const STATUS_CONFIG = {
 export default function TaskCard({ task, onDelete, onEdit, onStatusChange, isEditing = false, isDeleting = false, compact = false }) {
   const { isAdmin, userId } = useAuth();
 
-  const creatorId   = task.created_by?._id ?? task.created_by;
-  const isOwnTask   = String(creatorId) === String(userId);
-  const canMutate   = isAdmin || isOwnTask;
-  const canChangeStatus = true; // everyone can change status on visible tasks
+  const creatorId      = task.created_by?._id ?? task.created_by;
+  const isOwnTask      = String(creatorId) === String(userId);
+  const canMutate      = isAdmin || isOwnTask;
+  // Only the creator can change status
+  const canChangeStatus = isAdmin || isOwnTask;
 
   const guardedEdit = () => {
     if (!canMutate) { toast.error(AUTH_ERROR); return; }
@@ -71,21 +72,17 @@ export default function TaskCard({ task, onDelete, onEdit, onStatusChange, isEdi
         </div>
 
         <div className="task-actions">
-          {/* Status dropdown — all members can change status */}
-          {canChangeStatus && (
+          {/* Status — only creator can change it */}
+          {canChangeStatus ? (
             <select
               value={task.status || 'pending'}
               onChange={handleStatusChange}
               style={{
-                padding: '4px 8px',
-                borderRadius: '6px',
+                padding: '4px 8px', borderRadius: '6px',
                 border: `1.5px solid ${status.color}`,
-                background: status.bg,
-                color: status.color,
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                outline: 'none',
+                background: status.bg, color: status.color,
+                fontSize: '0.75rem', fontWeight: 600,
+                cursor: 'pointer', outline: 'none',
               }}
               title="Change status"
             >
@@ -93,11 +90,12 @@ export default function TaskCard({ task, onDelete, onEdit, onStatusChange, isEdi
                 <option key={key} value={key}>{val.emoji} {val.label}</option>
               ))}
             </select>
-          )}
-
-          {/* Status badge for view-only */}
-          {!canChangeStatus && (
-            <span style={{ padding: '4px 10px', borderRadius: '20px', background: status.bg, color: status.color, fontSize: '0.72rem', fontWeight: 700 }}>
+          ) : (
+            <span style={{
+              padding: '4px 10px', borderRadius: '20px',
+              background: status.bg, color: status.color,
+              fontSize: '0.72rem', fontWeight: 700,
+            }}>
               {status.emoji} {status.label}
             </span>
           )}

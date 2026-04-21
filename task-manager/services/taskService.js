@@ -94,7 +94,7 @@ exports.updateTask = async (req, taskId, data) => {
   if (!task) throw new AppError('Task not found.', 404);
 
   assertOrgOwnership(req, task.organization_id);
-  // Both status and full edits require ownership for members
+  // Both status and full edits require ownership — only creator can modify
   assertMutationAccess(req, task);
 
   const updated = await Task.findByIdAndUpdate(
