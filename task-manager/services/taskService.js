@@ -33,11 +33,8 @@ exports.getAllTasks = async (req) => {
   const skip   = (page - 1) * limit;
   const search = req.query.search;
 
-  // Admin → all org tasks | Member → only their own tasks
-  const filter =
-    req.role === 'admin'
-      ? { organization_id: req.organization_id }
-      : { organization_id: req.organization_id, created_by: req.user_id };
+  // Admin → all org tasks | Member → all org tasks (view all, manage own)
+  const filter = { organization_id: req.organization_id };
 
   if (search) {
     filter.title = { $regex: escapeRegex(search), $options: 'i' };
