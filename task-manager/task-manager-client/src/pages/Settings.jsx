@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useSettings } from '../context/SettingsContext';
 import { useAuth } from '../context/AuthContext';
-import { sounds } from '../utils/sound';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { toast } from '../components/Toast';
@@ -124,24 +123,6 @@ export default function Settings() {
           <Row label="Toast notifications" desc="Show pop-up messages for actions">
             <Toggle checked={settings.notificationsEnabled} onChange={(v) => update('notificationsEnabled', v)} />
           </Row>
-          {settings.soundEnabled && (
-            <Row label="Test sounds" desc="Preview each notification sound">
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {[
-                  { type: 'success', label: '✅ Success' },
-                  { type: 'error',   label: '❌ Error' },
-                  { type: 'delete',  label: '🗑️ Delete' },
-                  { type: 'notify',  label: '🔔 Notify' },
-                ].map(({ type, label }) => (
-                  <button key={type} className="btn btn-sm btn-ghost"
-                    onClick={() => sounds[type]?.()}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </Row>
-          )}
         </Section>
 
         {/* Security — change password */}
