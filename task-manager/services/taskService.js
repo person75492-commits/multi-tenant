@@ -91,17 +91,16 @@ exports.updateTask = async (req, taskId, data) => {
   if (!task) throw new AppError('Task not found.', 404);
 
   assertOrgOwnership(req, task.organization_id);
-
-  // Status-only update — any org member can change status
-  const isStatusOnly = data.status && !data.title && !data.description;
-  if (!isStatusOnly) {
-    // Full edit (title/description) requires ownership
-    assertMutationAccess(req, task);
-  }
+  // Both status and full edits require ownership for members
+  assertMutationAccess(req, task);
 
   const updated = await Task.findByIdAndUpdate(
     taskId,
-    { title: data.title ?? task.title, description: data.description ?? task.description, status: data.status ?? task.status },
+    {
+      title:       data.title       ?? task.title,
+      description: data.description ?? task.description,
+      status:      data.status      ?? task.status,
+    },
     { new: true, runValidators: true }
   ).populate('created_by', 'name email');
 
