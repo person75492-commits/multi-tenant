@@ -18,8 +18,26 @@ const getStoredToken = () => {
 export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(getStoredToken);
   const [user, setUser]   = useState(() => {
-    try { return JSON.parse(localStorage.getItem('user') || 'null'); }
-    catch { return null; }
+    try {
+      const stored = JSON.parse(localStorage.getItem('user') || 'null');
+      if (!stored) return null;
+
+      // On refresh — re-verify role from JWT to prevent stale role in localStorage
+      const t = localStorage.getItem('token');
+      if (t) {
+        const payload = decodeToken(t);
+        if (payload) {
+          // Always trust JWT payload for role and ids
+          return {
+            ...stored,
+            _id:             payload.user_id,
+            role:            payload.role,
+            organization_id: payload.organization_id,
+          };
+        }
+      }
+      return stored;
+    } catch { return null; }
   });
 
   /**
@@ -27,10 +45,18 @@ export const AuthProvider = ({ children }) => {
    * Called after login or register with the decoded+merged user object.
    */
   const saveAuth = (newToken, newUser) => {
+    // Always derive role from JWT — never trust what's passed in user object alone
+    const payload = decodeToken(newToken);
+    const mergedUser = {
+      ...newUser,
+      _id:             payload?.user_id        ?? newUser._id,
+      role:            payload?.role           ?? newUser.role,
+      organization_id: payload?.organization_id ?? newUser.organization_id,
+    };
     localStorage.setItem('token', newToken);
-    localStorage.setItem('user', JSON.stringify(newUser));
+    localStorage.setItem('user', JSON.stringify(mergedUser));
     setToken(newToken);
-    setUser(newUser);
+    setUser(mergedUser);
   };
 
   const logout = () => {
