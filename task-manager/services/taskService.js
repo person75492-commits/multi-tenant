@@ -33,8 +33,11 @@ exports.getAllTasks = async (req) => {
   const skip   = (page - 1) * limit;
   const search = req.query.search;
 
-  // Both roles see all tasks in their org — org isolation is the boundary
-  const filter = { organization_id: req.organization_id };
+  // Admin → all org tasks | Member → only their own tasks
+  const filter =
+    req.role === 'admin'
+      ? { organization_id: req.organization_id }
+      : { organization_id: req.organization_id, created_by: req.user_id };
 
   if (search) {
     filter.title = { $regex: escapeRegex(search), $options: 'i' };
@@ -55,11 +58,17 @@ exports.getAllTasks = async (req) => {
   };
 };
 
-// GET /tasks/:id — any org member can view any task in their org
+// GET /tasks/:id
 exports.getTask = async (req, taskId) => {
   const task = await Task.findById(taskId).populate('created_by', 'name email');
   if (!task) throw new AppError('Task not found.', 404);
   assertOrgOwnership(req, task.organization_id);
+  // Member can only view their own tasks
+  if (req.role !== 'admin') {
+    if (creatorId(task).toString() !== req.user_id.toString()) {
+      throw new AppError('Task not found.', 404); // 404 not 403 — don't reveal existence
+    }
+  }
   return task;
 };
 

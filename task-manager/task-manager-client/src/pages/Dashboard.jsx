@@ -52,7 +52,17 @@ export default function Dashboard() {
     setError('');
     try {
       const res = await getTasks({ page, limit: 10, search });
-      setTasks(res.data.data.tasks);
+      const fetched = res.data.data.tasks;
+
+      // Client-side safety filter — member only sees own tasks
+      const filtered = isAdmin
+        ? fetched
+        : fetched.filter((task) => {
+            const creator = task.created_by?._id ?? task.created_by;
+            return String(creator) === String(userId);
+          });
+
+      setTasks(filtered);
       setPagination(res.data.pagination || {});
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to load tasks.');
@@ -128,7 +138,7 @@ export default function Dashboard() {
         <div className="dashboard-header">
           <div>
             <h1 className="dashboard-title">
-              {isAdmin ? 'All Tasks' : 'Organization Tasks'}
+              {isAdmin ? 'All Tasks' : 'My Tasks'}
             </h1>
             <div className="dashboard-sub">
               <span>Hello, <strong>{user?.name}</strong> ({user?.role})</span>
