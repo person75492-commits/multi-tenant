@@ -29,8 +29,8 @@ export default function TaskForm({ initial = null, onSubmit, onCancel, loading, 
   useEffect(() => {
     if (!isAdmin) return;
     api.get('/org/members')
-      .then((res) => setMembers(res.data.data.members || []))
-      .catch(() => {});
+      .then((res) => setMembers(res.data.data?.members || []))
+      .catch((err) => console.error('Failed to load members:', err));
   }, [isAdmin]);
 
   const set = (field) => (e) => {
@@ -85,15 +85,21 @@ export default function TaskForm({ initial = null, onSubmit, onCancel, loading, 
       </div>
 
       {/* Assignee — admin only, only for private tasks */}
-      {isAdmin && form.visibility === 'private' && members.length > 0 && (
+      {isAdmin && form.visibility === 'private' && (
         <div className="form-group">
           <label className="form-label">Assign to <span className="optional">(optional)</span></label>
-          <select className="form-input" value={form.assignee} onChange={set('assignee')}>
-            <option value="">— Unassigned (only admin sees) —</option>
-            {members.map((m) => (
-              <option key={m._id} value={m._id}>{m.name} ({m.email})</option>
-            ))}
-          </select>
+          {members.length === 0 ? (
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-faint)', padding: '8px 0' }}>
+              No members have joined yet. Share your invite code so members can join.
+            </p>
+          ) : (
+            <select className="form-input" value={form.assignee} onChange={set('assignee')}>
+              <option value="">— Unassigned (only admin sees) —</option>
+              {members.map((m) => (
+                <option key={m._id} value={m._id}>{m.name} ({m.email})</option>
+              ))}
+            </select>
+          )}
         </div>
       )}
 
