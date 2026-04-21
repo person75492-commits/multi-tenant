@@ -127,9 +127,7 @@ export default function Dashboard() {
         {/* Header */}
         <div className="dashboard-header">
           <div>
-            <h1 className="dashboard-title">
-              {isAdmin ? 'All Tasks' : 'My Tasks'}
-            </h1>
+            <h1 className="dashboard-title">{isAdmin ? 'My Tasks' : 'Tasks'}</h1>
             <div className="dashboard-sub">
               <span>Hello, <strong>{user?.name}</strong> ({user?.role})</span>
               <span className={`role-badge ${user?.role}`}>

@@ -1,27 +1,23 @@
 const Task = require('../models/Task');
+const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const { assertOrgOwnership } = require('../middleware/tenantGuard');
 const { log, ACTIONS } = require('./activityLogService');
 const escapeRegex = require('../utils/escapeRegex');
 
-// ── Helpers ───────────────────────────────────────────────────
+const creatorId = (task) => task.created_by?._id ?? task.created_by;
 
-/**
- * Extracts the creator's _id regardless of whether created_by
- * is a populated object { _id, name, email } or a raw ObjectId.
- */
-const creatorId = (task) =>
-  task.created_by?._id ?? task.created_by;
-
-/**
- * Throws 403 if a member tries to mutate a task they don't own.
- * Admins always pass.
- */
 const assertMutationAccess = (req, task) => {
   if (req.role === 'admin') return;
   if (creatorId(task).toString() !== req.user_id.toString()) {
     throw new AppError('Access Denied: you can only modify your own tasks.', 403);
   }
+};
+
+// Get all admin IDs in an org — admin tasks are visible to everyone
+const getAdminIds = async (organization_id) => {
+  const admins = await User.find({ organization_id, role: 'admin' }).select('_id');
+  return admins.map((a) => a._id);
 };
 
 // ── Service methods ───────────────────────────────────────────
@@ -33,8 +29,21 @@ exports.getAllTasks = async (req) => {
   const skip   = (page - 1) * limit;
   const search = req.query.search;
 
-  // Admin → all org tasks | Member → all org tasks (view all, manage own)
-  const filter = { organization_id: req.organization_id };
+  // Admin → sees all org tasks
+  // Member → sees own tasks + all admin-created tasks
+  let filter;
+  if (req.role === 'admin') {
+    filter = { organization_id: req.organization_id };
+  } else {
+    const adminIds = await getAdminIds(req.organization_id);
+    filter = {
+      organization_id: req.organization_id,
+      $or: [
+        { created_by: req.user_id },          // own tasks
+        { created_by: { $in: adminIds } },    // admin tasks (visible to all)
+      ],
+    };
+  }
 
   if (search) {
     filter.title = { $regex: escapeRegex(search), $options: 'i' };
@@ -60,11 +69,13 @@ exports.getTask = async (req, taskId) => {
   const task = await Task.findById(taskId).populate('created_by', 'name email');
   if (!task) throw new AppError('Task not found.', 404);
   assertOrgOwnership(req, task.organization_id);
-  // Member can only view their own tasks
+
   if (req.role !== 'admin') {
-    if (creatorId(task).toString() !== req.user_id.toString()) {
-      throw new AppError('Task not found.', 404); // 404 not 403 — don't reveal existence
-    }
+    const adminIds = (await getAdminIds(req.organization_id)).map(String);
+    const creator  = creatorId(task).toString();
+    const isOwn    = creator === req.user_id.toString();
+    const isAdmin  = adminIds.includes(creator);
+    if (!isOwn && !isAdmin) throw new AppError('Task not found.', 404);
   }
   return task;
 };
