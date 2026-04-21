@@ -61,7 +61,10 @@ export default function TaskCard({ task, onDelete, onEdit, onStatusChange, isEdi
           {isEditing  && <span className="tag tag-editing">Editing</span>}
           {isDeleting && <span className="tag tag-deleting">Deleting…</span>}
           {!isAdmin && !isOwnTask && <span className="tag tag-readonly">👁️ View only</span>}
-          {task.visibility === 'public' && <span className="tag" style={{ background: '#dbeafe', color: '#1d4ed8' }}>📢 Broadcast</span>}
+          {task.visibility === 'public'  && <span className="tag" style={{ background: '#dbeafe', color: '#1d4ed8' }}>📢 Broadcast</span>}
+          {task.visibility === 'private' && !isOwnTask && !isAdmin && (
+            <span className="tag" style={{ background: '#fef3c7', color: '#b45309' }}>🔒 Private</span>
+          )}
           <h3 className="task-title" style={{ textDecoration: task.status === 'completed' ? 'line-through' : 'none', opacity: task.status === 'completed' ? 0.6 : 1 }}>
             {task.title}
           </h3>
