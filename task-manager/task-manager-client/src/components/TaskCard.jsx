@@ -61,6 +61,7 @@ export default function TaskCard({ task, onDelete, onEdit, onStatusChange, isEdi
           {isEditing  && <span className="tag tag-editing">Editing</span>}
           {isDeleting && <span className="tag tag-deleting">Deleting…</span>}
           {!canMutate && <span className="tag tag-readonly">View only</span>}
+          {task.visibility === 'public' && <span className="tag" style={{ background: '#dbeafe', color: '#1d4ed8' }}>📢 Broadcast</span>}
           <h3 className="task-title" style={{ textDecoration: task.status === 'completed' ? 'line-through' : 'none', opacity: task.status === 'completed' ? 0.6 : 1 }}>
             {task.title}
           </h3>
@@ -127,6 +128,9 @@ export default function TaskCard({ task, onDelete, onEdit, onStatusChange, isEdi
 
       <div className="task-meta">
         <span>👤 {task.created_by?.name || 'Unknown'}</span>
+        {task.assignee && (
+          <span>📌 Assigned to: <strong>{task.assignee.name}</strong></span>
+        )}
         <span>🕒 {new Date(task.createdAt).toLocaleDateString('en-GB')}</span>
       </div>
     </div>

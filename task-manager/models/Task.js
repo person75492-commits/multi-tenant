@@ -26,6 +26,16 @@ const taskSchema = new mongoose.Schema(
       enum: ['pending', 'in_progress', 'completed'],
       default: 'pending',
     },
+    assignee: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    visibility: {
+      type: String,
+      enum: ['private', 'public'],
+      default: 'private', // private = assigned only | public = all org members
+    },
   },
   { timestamps: true }
 );

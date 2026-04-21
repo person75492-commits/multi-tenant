@@ -21,4 +21,15 @@ router.get('/invite-code', adminOnly, catchAsync(async (req, res) => {
   });
 }));
 
+// GET /api/v1/org/members — admin only
+// Returns all members in the organization for assignee dropdown
+router.get('/members', adminOnly, catchAsync(async (req, res) => {
+  const User = require('../models/User');
+  const members = await User.find({
+    organization_id: req.organization_id,
+    role: 'member',
+  }).select('_id name email');
+  res.json({ status: 'success', data: { members } });
+}));
+
 module.exports = router;

@@ -1,5 +1,4 @@
 const Task = require('../models/Task');
-const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const { assertOrgOwnership } = require('../middleware/tenantGuard');
 const { log, ACTIONS } = require('./activityLogService');
@@ -14,12 +13,6 @@ const assertMutationAccess = (req, task) => {
   }
 };
 
-// Get all admin IDs in an org — admin tasks are visible to everyone
-const getAdminIds = async (organization_id) => {
-  const admins = await User.find({ organization_id, role: 'admin' }).select('_id');
-  return admins.map((a) => a._id);
-};
-
 // ── Service methods ───────────────────────────────────────────
 
 // Admin → all tasks in org | Member → all org tasks (but can only mutate own)
@@ -30,20 +23,18 @@ exports.getAllTasks = async (req) => {
   const search = req.query.search;
 
   // Admin → sees all org tasks
-  // Member → sees own tasks + all admin-created tasks
-  let filter;
-  if (req.role === 'admin') {
-    filter = { organization_id: req.organization_id };
-  } else {
-    const adminIds = await getAdminIds(req.organization_id);
-    filter = {
-      organization_id: req.organization_id,
-      $or: [
-        { created_by: req.user_id },          // own tasks
-        { created_by: { $in: adminIds } },    // admin tasks (visible to all)
-      ],
-    };
-  }
+  // Member → sees: public tasks + own tasks + tasks assigned to them
+  const filter =
+    req.role === 'admin'
+      ? { organization_id: req.organization_id }
+      : {
+          organization_id: req.organization_id,
+          $or: [
+            { visibility: 'public' },          // admin broadcast tasks
+            { created_by: req.user_id },        // own tasks
+            { assignee: req.user_id },          // assigned tasks
+          ],
+        };
 
   if (search) {
     filter.title = { $regex: escapeRegex(search), $options: 'i' };
@@ -52,6 +43,7 @@ exports.getAllTasks = async (req) => {
   const [tasks, total] = await Promise.all([
     Task.find(filter)
       .populate('created_by', 'name email')
+      .populate('assignee', 'name email')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),
@@ -66,16 +58,18 @@ exports.getAllTasks = async (req) => {
 
 // GET /tasks/:id
 exports.getTask = async (req, taskId) => {
-  const task = await Task.findById(taskId).populate('created_by', 'name email');
+  const task = await Task.findById(taskId)
+    .populate('created_by', 'name email')
+    .populate('assignee', 'name email');
   if (!task) throw new AppError('Task not found.', 404);
   assertOrgOwnership(req, task.organization_id);
 
   if (req.role !== 'admin') {
-    const adminIds = (await getAdminIds(req.organization_id)).map(String);
-    const creator  = creatorId(task).toString();
-    const isOwn    = creator === req.user_id.toString();
-    const isAdmin  = adminIds.includes(creator);
-    if (!isOwn && !isAdmin) throw new AppError('Task not found.', 404);
+    const isPublic   = task.visibility === 'public';
+    const isOwn      = creatorId(task).toString() === req.user_id.toString();
+    const isAssigned = task.assignee?._id?.toString() === req.user_id.toString()
+                    || task.assignee?.toString()       === req.user_id.toString();
+    if (!isPublic && !isOwn && !isAssigned) throw new AppError('Task not found.', 404);
   }
   return task;
 };
@@ -85,10 +79,11 @@ exports.createTask = async (req, data) => {
   const task = await Task.create({
     title:           data.title,
     description:     data.description,
-    organization_id: req.organization_id,  // always from JWT — never from body
+    organization_id: req.organization_id,
     created_by:      req.user_id,
+    assignee:        data.assignee || null,
+    visibility:      req.role === 'admin' ? (data.visibility || 'private') : 'private',
   });
-
   await log({ user_id: req.user_id, task_id: task._id, action: ACTIONS.CREATE });
   return task;
 };
@@ -108,9 +103,11 @@ exports.updateTask = async (req, taskId, data) => {
       title:       data.title       ?? task.title,
       description: data.description ?? task.description,
       status:      data.status      ?? task.status,
+      assignee:    data.assignee !== undefined ? data.assignee : task.assignee,
+      visibility:  req.role === 'admin' && data.visibility ? data.visibility : task.visibility,
     },
     { new: true, runValidators: true }
-  ).populate('created_by', 'name email');
+  ).populate('created_by', 'name email').populate('assignee', 'name email');
 
   await log({ user_id: req.user_id, task_id: taskId, action: ACTIONS.UPDATE });
   return updated;

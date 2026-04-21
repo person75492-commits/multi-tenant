@@ -29,6 +29,10 @@ exports.updateTaskRules = [
   body('status')
     .optional()
     .isIn(['pending', 'in_progress', 'completed']).withMessage('Status must be pending, in_progress or completed'),
+
+  body('assignee')
+    .optional()
+    .isMongoId().withMessage('Invalid assignee ID'),
 ];
 
 exports.mongoIdParam = [
